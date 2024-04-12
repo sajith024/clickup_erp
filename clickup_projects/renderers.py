@@ -7,7 +7,7 @@ class ClickUpResponeRenderer(JSONRenderer):
         response = renderer_context["response"]
 
         modified_data = {}
-        modified_data["status"] = response.status_code
+        modified_data["statusCode"] = response.status_code
         modified_data["success"] = not self.is_error(response.status_code)
 
         if isinstance(data, dict):
@@ -18,7 +18,10 @@ class ClickUpResponeRenderer(JSONRenderer):
                 if self.is_error(response.status_code):
                     modified_data["errors"] = data.get("errors") or data
                 else:
-                    modified_data["data"] = data.get("data") or data
+                    if data.get("allocatedUsers"):
+                        modified_data["allocatedUsers"] = data.get("allocatedUsers")
+                    else:
+                        modified_data["data"] = data.get("data") or data
 
             return super().render(modified_data, accepted_media_type, renderer_context)
         else:
