@@ -6,19 +6,25 @@ from . import models
 
 class ClickUpUserManager(BaseUserManager):
 
-    def create_user(self, username, password=None, email=None, **extra_fields):
+    def create_user(self, username, password, email, **extra_fields):
+        if not email:
+            raise ValueError(_("Users must have an email address"))
+        if not username:
+            raise ValueError("Username must be set")
+        if not password:
+            raise ValueError("Password must be set")
+
         extra_fields.setdefault("is_staff", False)
         extra_fields.setdefault("is_superuser", False)
         extra_fields.setdefault("is_active", False)
-        if not username:
-            raise ValueError("The given username must be set")
+
         email = self.normalize_email(email)
         user = self.model(username=username, email=email, **extra_fields)
         user.set_password(password)
         user.save()
         return user
 
-    def create_superuser(self, username, password, **extra_fields):
+    def create_superuser(self, username, password, email, **extra_fields):
         extra_fields.setdefault("is_staff", True)
         extra_fields.setdefault("is_superuser", True)
         extra_fields.setdefault("is_active", True)
@@ -27,4 +33,4 @@ class ClickUpUserManager(BaseUserManager):
             raise ValueError(_("Superuser must have is_staff=True."))
         if extra_fields.get("is_superuser") is not True:
             raise ValueError(_("Superuser must have is_superuser=True."))
-        return self.create_user(username, password, **extra_fields)
+        return self.create_user(username, password, email, **extra_fields)

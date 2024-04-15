@@ -161,15 +161,15 @@ class Employee(Model):
         primary_key=True, default=generate_uuid, max_length=32, editable=False
     )
     user = ForeignKey(ClickUpUser, on_delete=CASCADE)
-    employeeId = CharField()
+    employeeId = CharField(default="")
     photo = ImageField(null=True, blank=True)
-    role = ForeignKey(Role, on_delete=CASCADE)
+    role = ForeignKey(Role, on_delete=CASCADE, null=True, blank=True)
     skillSet = ManyToManyField(Skill, blank=True)
     theme = CharField(choices=THEMES_MODE, default="light")
     dateFormat = CharField(choices=DATE_FORMAT, default="dd-mm-yyyy")
     timeFormat = CharField(choices=TIME_FORMAT, default="24hr")
     toastPosition = CharField(choices=TOAST_POSITION, default="OFF")
-    contactNumber = CharField()
+    contactNumber = CharField(default="")
     education = ManyToManyField(Education, blank=True)
 
     def __str__(self) -> str:

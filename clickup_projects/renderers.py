@@ -3,6 +3,7 @@ from rest_framework.status import is_client_error, is_server_error
 
 
 class ClickUpResponeRenderer(JSONRenderer):
+
     def render(self, data, accepted_media_type=None, renderer_context=None):
         response = renderer_context["response"]
 
@@ -20,6 +21,8 @@ class ClickUpResponeRenderer(JSONRenderer):
                 else:
                     if data.get("allocatedUsers"):
                         modified_data["allocatedUsers"] = data.get("allocatedUsers")
+                    elif data.get("ticketData"):
+                        modified_data.update(data)
                     else:
                         modified_data["data"] = data.get("data") or data
 

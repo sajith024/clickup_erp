@@ -25,9 +25,11 @@ from .models import (
 
 from .serializers import (
     ListsSerializer,
+    ListsUpdateSerializer,
     JokesSerializer,
     SprintsSerializer,
     FoldersSerializer,
+    FoldersUpdateSerializer,
     ProjectSerializer,
     ProjectIconsSerializer,
     RoleSerializer,
@@ -42,6 +44,12 @@ class ListsViewSet(ModelViewSet):
     queryset = Lists.objects.all()
     serializer_class = ListsSerializer
     permission_classes = []
+
+    def get_serializer_class(self):
+        if self.request.method == "GET":
+            return ListsSerializer
+
+        return ListsUpdateSerializer
 
 
 class JokesView(ListAPIView):
@@ -65,28 +73,33 @@ class JokesView(ListAPIView):
 class SprintsViewSet(ModelViewSet):
     queryset = Sprints.objects.all()
     serializer_class = SprintsSerializer
-    permission_classes = []
+    permission_classes = [IsAuthenticated]
 
 
 @extend_schema_view()
 class FoldersViewSet(ModelViewSet):
     queryset = Folders.objects.all()
     serializer_class = FoldersSerializer
-    permission_classes = []
+    permission_classes = [IsAuthenticated]
+    
+    def get_serializer_class(self):
+        if self.request.method == "GET":
+            return FoldersSerializer
 
+        return FoldersUpdateSerializer
 
 @extend_schema_view()
 class ProjectView(ListAPIView):
     queryset = Project.objects.all()
     serializer_class = ProjectSerializer
-    permission_classes = []
+    permission_classes = [IsAuthenticated]
 
 
 @extend_schema_view()
 class ProjectIconsView(ListAPIView):
     queryset = ProjectIcons.objects.all()
     serializer_class = ProjectIconsSerializer
-    permission_classes = []
+    permission_classes = [IsAuthenticated]
 
     def list(self, request, *args, **kwargs):
         response = super().list(request, *args, **kwargs)
@@ -98,21 +111,21 @@ class ProjectIconsView(ListAPIView):
 class RoleViewSet(ModelViewSet):
     queryset = Role.objects.all()
     serializer_class = RoleSerializer
-    permission_classes = []
+    permission_classes = [IsAuthenticated]
 
 
 @extend_schema_view()
 class EmployeeViewSet(ModelViewSet):
     queryset = Employee.objects.all()
     serializer_class = EmployeeSerializer
-    permission_classes = []
+    permission_classes = [IsAuthenticated]
 
 
 @extend_schema_view()
 class TeamMemberView(CreateAPIView):
     queryset = TeamMember.objects.all()
     serializer_class = TeamMemberSerializer
-    permission_classes = []
+    permission_classes = [IsAuthenticated]
 
     def get_queryset(self):
         params = self.request.data.get("params", {})

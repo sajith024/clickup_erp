@@ -71,16 +71,14 @@ class Ticket(Model):
     )
     createdAt = DateTimeField(auto_now=True)
     updatedAt = DateTimeField(auto_now_add=True)
-    createdBy = ForeignKey(
-        Employee, on_delete=SET_NULL, null=True, related_name="created_ticket"
-    )
-    updatedBy = ForeignKey(
-        Employee, on_delete=SET_NULL, null=True, related_name="updated_ticket"
-    )
-    deletedBy = ForeignKey(
+    createdBy = ManyToManyField(Employee, related_name="created_ticket")
+    updatedBy = ManyToManyField(
         Employee,
-        on_delete=SET_NULL,
-        null=True,
+        related_name="updated_ticket",
+        blank=True,
+    )
+    deletedBy = ManyToManyField(
+        Employee,
         related_name="deleted_ticket",
         blank=True,
     )
@@ -125,23 +123,17 @@ class TicketAllocation(Model):
     ticket = ForeignKey(Ticket, on_delete=CASCADE, related_name="allocations")
     createdAt = DateTimeField(auto_now=True)
     updatedAt = DateTimeField(auto_now_add=True)
-    createdBy = ForeignKey(
+    createdBy = ManyToManyField(
         Employee,
-        on_delete=SET_NULL,
-        null=True,
         related_name="created_allocations",
     )
-    updatedBy = ForeignKey(
+    updatedBy = ManyToManyField(
         Employee,
-        on_delete=SET_NULL,
-        null=True,
         related_name="updated_allocations",
         blank=True,
     )
-    deletedBy = ForeignKey(
+    deletedBy = ManyToManyField(
         Employee,
-        on_delete=SET_NULL,
-        null=True,
         related_name="deleted_allocations",
         blank=True,
     )
@@ -185,7 +177,9 @@ class TicketAllocationAttachment(Model):
     )
 
     type = CharField()
-    ticket_allocation = ForeignKey(TicketAllocation, on_delete=CASCADE, related_name="attachment")
+    ticket_allocation = ForeignKey(
+        TicketAllocation, on_delete=CASCADE, related_name="attachment"
+    )
     files = FileField(upload_to=ticket_allocation_attachment_path)
 
     def __str__(self) -> str:

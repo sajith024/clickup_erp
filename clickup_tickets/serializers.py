@@ -37,9 +37,9 @@ class TicketEmployeeSerializer(ModelSerializer):
 
 class TicketAllocationSerializer(ModelSerializer):
     assignedUsers = TeamMemberSerializer(many=True)
-    createdBy = TicketEmployeeSerializer()
-    updatedBy = TicketEmployeeSerializer()
-    deletedBy = TicketEmployeeSerializer()
+    createdBy = TicketEmployeeSerializer(many=True)
+    updatedBy = TicketEmployeeSerializer(many=True)
+    deletedBy = TicketEmployeeSerializer(many=True)
 
     class Meta:
         model = TicketAllocation
@@ -97,9 +97,9 @@ class TicketAllocationUpdateSerializer(ModelSerializer):
 
             for user in assigned_users_data:
                 try:
-                    TeamMember.objects.get(**user)
+                    TeamMember.objects.get(_id=user["_id"])
                 except TeamMember.DoesNotExist:
-                    raise ValidationError("User Doesn't Exist")
+                    raise ValidationError("TeamMember Doesn't Exist"+user["_id"])
 
             instance.assignedUsers.clear()
 
@@ -112,7 +112,10 @@ class TicketAllocationUpdateSerializer(ModelSerializer):
 
 class TicketSerializer(ModelSerializer):
     allocations = TicketAllocationSerializer(many=True)
-
+    createdBy = TicketEmployeeSerializer(many=True)
+    updatedBy = TicketEmployeeSerializer(many=True)
+    deletedBy = TicketEmployeeSerializer(many=True)
+    
     class Meta:
         model = Ticket
         fields = (
@@ -145,6 +148,7 @@ class TicketUpdateSerializer(ModelSerializer):
     class Meta:
         model = Ticket
         fields = (
+            "_id",
             "title",
             "description",
             "startDate",
@@ -174,6 +178,7 @@ class TicketAttachmentUpdateSerializer(ModelSerializer):
         fields = fields = ("files",)
 
     def create(self, validated_data):
+        print(self.context)
         ticket_id = self.context["ticket_id"]
         try:
             Ticket.objects.get(_id=ticket_id)

@@ -4,6 +4,7 @@ from rest_framework.serializers import (
     CharField,
     ImageField,
     IntegerField,
+    ListField,
 )
 
 from .models import (
@@ -28,6 +29,15 @@ class ListsSerializer(ModelSerializer):
         fields = (
             "_id",
             "name",
+        )
+
+
+class ListsUpdateSerializer(ModelSerializer):
+    class Meta:
+        model = Lists
+        fields = (
+            "name",
+            "project",
         )
 
 
@@ -59,6 +69,28 @@ class FoldersSerializer(ModelSerializer):
             "list",
         )
 
+
+class FoldersUpdateSerializer(ModelSerializer):
+    lists = ListField(child=CharField(), source="list")
+
+    class Meta:
+        model = Folders
+        fields = (
+            "_id",
+            "name",
+            "project",
+            "lists",
+        )
+
+    def create(self, validated_data):
+        lists = validated_data.pop("list")
+        project = validated_data.get("project")
+        folder = Folders.objects.create(**validated_data)
+        for list_name in lists:
+            folder_list = Lists.objects.create(name=list_name, project=project)
+            folder.list.add(folder_list)
+        return folder
+    
 
 class ProjectSerializer(ModelSerializer):
     sprint = SprintsSerializer(many=True)
@@ -131,6 +163,7 @@ class TeamMemberSerializer(ModelSerializer):
     userId = CharField(source="user._id")
     role = CharField(source="user.role._id")
     user = CharField(source="user.user.get_full_name")
+    employeeName = CharField(source="user.user.get_full_name")
     photo = ImageField(source="user.photo")
     allocationHours = SerializerMethodField()
     department = CharField(source="user.role.department.name")
@@ -152,6 +185,7 @@ class TeamMemberSerializer(ModelSerializer):
             "userId",
             "role",
             "user",
+            "employeeName",
             "photo",
             "allocationHours",
             "department",
