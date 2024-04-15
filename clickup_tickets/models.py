@@ -6,12 +6,17 @@ from django.db.models import (
     DateTimeField,
     DurationField,
     IntegerField,
+    FileField,
 )
 from django.db.models import ForeignKey, CASCADE, SET_NULL, ManyToManyField
 from django.core.validators import RegexValidator
 from django.utils.timezone import timedelta
 
-from clickup_utils.utils import generate_uuid
+from clickup_utils.utils import (
+    generate_uuid,
+    ticket_attachment_path,
+    ticket_allocation_attachment_path,
+)
 from clickup_projects.models import Employee, TeamMember, Lists, Sprints
 
 
@@ -85,7 +90,7 @@ class Ticket(Model):
             short_code = self.list.project.shortCode
         else:
             short_code = self.sprint.project.shortCode
-            
+
         last_instance = Ticket.objects.order_by("customId").last()
 
         if last_instance:
@@ -143,14 +148,14 @@ class TicketAllocation(Model):
     _v = IntegerField(default=0)
 
     def generate_custom_id(self):
-        customId = self.ticket.customId
+        custom_id = self.ticket.customId
         last_instance = self.ticket.allocations.last()
         if last_instance:
             last_id = int(last_instance.customId.split("#")[1])
             new_id = last_id + 1
         else:
             new_id = 1
-        return f"{customId}#{new_id}"
+        return f"{custom_id}#{new_id}"
 
     def save(self, *args, **kwargs):
         if not self.customId:
@@ -159,3 +164,29 @@ class TicketAllocation(Model):
 
     def __str__(self) -> str:
         return self.title
+
+
+class TicketAttachment(Model):
+    _id = CharField(
+        primary_key=True, default=generate_uuid, max_length=32, editable=False
+    )
+
+    type = CharField()
+    ticket = ForeignKey(Ticket, on_delete=CASCADE, related_name="attachment")
+    files = FileField(upload_to=ticket_attachment_path)
+
+    def __str__(self) -> str:
+        return self.file.path
+
+
+class TicketAllocationAttachment(Model):
+    _id = CharField(
+        primary_key=True, default=generate_uuid, max_length=32, editable=False
+    )
+
+    type = CharField()
+    ticket_allocation = ForeignKey(TicketAllocation, on_delete=CASCADE, related_name="attachment")
+    files = FileField(upload_to=ticket_allocation_attachment_path)
+
+    def __str__(self) -> str:
+        return self.file.path

@@ -116,9 +116,9 @@ class TeamMemberView(CreateAPIView):
 
     def get_queryset(self):
         params = self.request.data.get("params", {})
-        projectId = params.get("projectId")
-        if projectId:
-            return TeamMember.objects.filter(project__id=projectId)
+        project_id = params.get("projectId")
+        if project_id:
+            return TeamMember.objects.filter(project___id=project_id)
         else:
             return self.queryset.all()
 
