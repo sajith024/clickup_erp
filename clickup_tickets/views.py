@@ -4,7 +4,7 @@ from rest_framework.generics import (
 )
 from rest_framework.viewsets import ModelViewSet
 from rest_framework.response import Response
-from rest_framework.status import HTTP_200_OK, HTTP_400_BAD_REQUEST
+from rest_framework.status import HTTP_200_OK, HTTP_204_NO_CONTENT, HTTP_400_BAD_REQUEST
 from rest_framework.permissions import IsAuthenticated
 from django.db.models import Prefetch
 
@@ -80,7 +80,6 @@ class TicketViewSet(ModelViewSet):
         sprint_id = self.request.query_params.get("sprintId")
         statuses = TicketStatus.objects.all()
 
-        
         queryset = Ticket.objects.all()
         if list_id or sprint_id:
             queryset_list = []
@@ -102,7 +101,7 @@ class TicketViewSet(ModelViewSet):
                     queryset_list.append(
                         {"_id": status._id, "groupById": status._id, "data": ticket}
                     )
-            
+
             queryset = queryset_list
 
         return queryset
@@ -125,28 +124,39 @@ class TicketViewSet(ModelViewSet):
             serializer = self.get_serializer(page, many=True)
             response = self.get_paginated_response(serializer.data)
 
-            ticket_data = response.data["data"][int(data_count)]
-            status = TicketStatus.objects.get(_id=ticket_data["_id"])
-            data = {
-                "ticketData": [ticket_data],
-                "pagination": response.data["pagination"],
-                "TableHeading": {
-                    "_id": status._id,
-                    "name": status.title,
-                },
-                "totalCount": [
-                    {"count": len(x["data"])} for x in response.data["data"]
-                ],
-            }
-            return Response(data, status=HTTP_200_OK)
+            if response.data["data"]:
+                ticket_data = response.data["data"][int(data_count)]
+                status = TicketStatus.objects.get(_id=ticket_data["_id"])
+                data = {
+                    "ticketData": [ticket_data],
+                    "pagination": response.data["pagination"],
+                    "TableHeading": {
+                        "_id": status._id,
+                        "name": status.title,
+                    },
+                    "totalCount": [
+                        {"count": len(x["data"])} for x in response.data["data"]
+                    ],
+                }
+                return Response(data, status=HTTP_200_OK)
+            else:
+                return Response(
+                    {
+                        "ticketData": [],
+                        "pagination": {},
+                        "TableHeading": {},
+                        "totalCount": [],
+                    },
+                    HTTP_200_OK,
+                )
         else:
             return Response(status=HTTP_400_BAD_REQUEST)
-        
-    def retrieve(self, request, *args, **kwargs):
-        return super().retrieve(request, *args, **kwargs)
-    
-    def update(self, request, *args, **kwargs):
-        return super().update(request, *args, **kwargs)
+
+    def destroy(self, request, *args, **kwargs):
+        response = super().destroy(request, *args, **kwargs)
+        if response.status_code == HTTP_204_NO_CONTENT:
+            response.status_code = HTTP_200_OK
+        return response
 
 
 @extend_schema_view()
@@ -159,6 +169,12 @@ class TicketAllocationViewSet(ModelViewSet):
         if self.request.method != "GET":
             return TicketAllocationUpdateSerializer
         return self.serializer_class
+
+    def destroy(self, request, *args, **kwargs):
+        response = super().destroy(request, *args, **kwargs)
+        if response.status_code == HTTP_204_NO_CONTENT:
+            response.status_code = HTTP_200_OK
+        return response
 
 
 @extend_schema_view()
@@ -173,7 +189,7 @@ class TicketAllocationAttachmentView(UpdateAPIView):
         return context
 
     def update(self, request, *args, **kwargs):
-        partial = kwargs.pop('partial', False)
+        partial = kwargs.pop("partial", False)
         serializer = self.get_serializer(data=request.data, partial=partial)
         serializer.is_valid(raise_exception=True)
         self.perform_update(serializer)
@@ -193,7 +209,7 @@ class TicketAttachmentView(UpdateAPIView):
         return context
 
     def update(self, request, *args, **kwargs):
-        partial = kwargs.pop('partial', False)
+        partial = kwargs.pop("partial", False)
         serializer = self.get_serializer(data=request.data, partial=partial)
         serializer.is_valid(raise_exception=True)
         self.perform_update(serializer)

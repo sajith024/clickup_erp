@@ -4,8 +4,6 @@ from rest_framework.decorators import api_view
 from rest_framework_simplejwt.tokens import RefreshToken
 from rest_framework.response import Response
 from rest_framework.status import HTTP_400_BAD_REQUEST, HTTP_200_OK
-from django.shortcuts import render
-from django.core.files import File
 from django.conf import settings
 
 from clickup_auth.models import ClickUpUser

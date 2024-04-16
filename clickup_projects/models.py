@@ -72,10 +72,10 @@ class Sprints(Model):
         primary_key=True, default=generate_uuid, max_length=32, editable=False
     )
     name = CharField()
-    active = BooleanField()
+    active = BooleanField(default=True)
     status = CharField(choices=SPRINT_STATUS, default="isActive")
     project = ForeignKey(Project, on_delete=CASCADE, related_name="sprint")
-
+    created_at = DateTimeField(auto_now=True)
     def __str__(self) -> str:
         return self.name
 
@@ -160,7 +160,7 @@ class Employee(Model):
     _id = CharField(
         primary_key=True, default=generate_uuid, max_length=32, editable=False
     )
-    user = ForeignKey(ClickUpUser, on_delete=CASCADE)
+    user = OneToOneField(ClickUpUser, on_delete=CASCADE, related_name="employee")
     employeeId = CharField(default="")
     photo = ImageField(null=True, blank=True)
     role = ForeignKey(Role, on_delete=CASCADE, null=True, blank=True)
@@ -180,7 +180,7 @@ class TeamMember(Model):
     _id = CharField(
         primary_key=True, default=generate_uuid, max_length=32, editable=False
     )
-    user = OneToOneField(Employee, on_delete=CASCADE)
+    user = OneToOneField(Employee, on_delete=CASCADE, related_name="team_member")
     allocationHours = DurationField(default=timedelta(hours=1))
     lastWorked = DateTimeField(null=True, blank=True)
     performanceIndex = IntegerField(default=0)

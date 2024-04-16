@@ -1,5 +1,5 @@
 from rest_framework.serializers import ModelSerializer, Serializer
-from rest_framework.serializers import CharField
+from rest_framework.serializers import CharField, DateField
 from rest_framework.serializers import ValidationError
 
 from .models import (
@@ -13,6 +13,7 @@ from .models import (
 
 from clickup_projects.models import TeamMember, Employee
 from clickup_projects.serializers import TeamMemberSerializer
+from clickup_utils.validators import check_name, check_date_below
 
 
 class PrioritySerializer(ModelSerializer):
@@ -56,6 +57,9 @@ class AllocationTeamMemberSerializer(ModelSerializer):
 
 class TicketAllocationUpdateSerializer(ModelSerializer):
     assignedUsers = AllocationTeamMemberSerializer(many=True)
+    title = CharField(validators=[check_name])
+    description = CharField(max_length=500)
+    startDate = DateField(validators=[check_date_below])
 
     class Meta:
         model = TicketAllocation
@@ -77,6 +81,8 @@ class TicketAllocationUpdateSerializer(ModelSerializer):
         for user in assigned_users_data:
             team_member = TeamMember.objects.get(**user)
             allocation.assignedUsers.add(team_member)
+
+        allocation.createdBy.add(self.context.get("request").user.employee)
         return allocation
 
     def update(self, instance: TicketAllocation, validated_data):
@@ -92,22 +98,33 @@ class TicketAllocationUpdateSerializer(ModelSerializer):
         instance.startDate = validated_data.get("startDate", instance.startDate)
         instance.dueDate = validated_data.get("dueDate", instance.dueDate)
 
+        instance.updatedBy.add(self.context.get("request").user.employee)
+
         if validated_data.get("assignedUsers"):
             assigned_users_data = validated_data.get("assignedUsers")
-
-            for user in assigned_users_data:
-                try:
-                    TeamMember.objects.get(_id=user["_id"])
-                except TeamMember.DoesNotExist:
-                    raise ValidationError("TeamMember Doesn't Exist"+user["_id"])
-
             instance.assignedUsers.clear()
-
             for user in assigned_users_data:
                 team_member = TeamMember.objects.get(**user)
                 instance.assignedUsers.add(team_member)
 
         return instance
+
+    def validate_assignedUsers(self, value):
+        for user in value:
+            try:
+                TeamMember.objects.get(_id=user["_id"])
+            except TeamMember.DoesNotExist:
+                raise ValidationError("TeamMember Doesn't Exist " + user["_id"])
+        return value
+
+    def validate(self, data):
+        start_date = data.get("startDate", self.instance.startDate)
+        due_date = data.get("dueDate", self.instance.dueDate)
+        if due_date and start_date:
+            if due_date < start_date:
+                raise ValidationError("Due date should be greater than Start date.")
+
+        return super().validate(data)
 
 
 class TicketSerializer(ModelSerializer):
@@ -115,7 +132,7 @@ class TicketSerializer(ModelSerializer):
     createdBy = TicketEmployeeSerializer(many=True)
     updatedBy = TicketEmployeeSerializer(many=True)
     deletedBy = TicketEmployeeSerializer(many=True)
-    
+
     class Meta:
         model = Ticket
         fields = (
@@ -145,16 +162,32 @@ class TicketGroupSerializer(Serializer):
 
 
 class TicketUpdateSerializer(ModelSerializer):
+    title = CharField(validators=[check_name])
+    description = CharField(max_length=500)
+    startDate = DateField(validators=[check_date_below])
+
     class Meta:
         model = Ticket
         fields = (
-            "_id",
             "title",
             "description",
             "startDate",
             "dueDate",
             "priority",
         )
+    
+    def update(self, instance, validated_data):
+        instance.updatedBy.add(self.context.get("request").user.employee)
+        return super().update(instance, validated_data)
+
+    def validate(self, data):
+        start_date = data.get("startDate", self.instance.startDate)
+        due_date = data.get("dueDate", self.instance.dueDate)
+        if due_date and start_date:
+            if due_date < start_date:
+                raise ValidationError("Due date should be greater than Start date.")
+
+        return super().validate(data)
 
 
 class TicketAllocationAttachmentUpdateSerializer(ModelSerializer):
@@ -163,13 +196,16 @@ class TicketAllocationAttachmentUpdateSerializer(ModelSerializer):
         fields = ("files",)
 
     def create(self, validated_data):
+        validated_data["ticket_allocation_id"] = self.context["allocation_id"]
+        return super().create(validated_data)
+
+    def validate(self, data):
         allocation_id = self.context["allocation_id"]
         try:
             TicketAllocation.objects.get(_id=allocation_id)
         except TicketAllocation.DoesNotExist:
             raise ValidationError("Ticket Allocation doesn't Exist")
-        validated_data["ticket_allocation_id"] = allocation_id
-        return super().create(validated_data)
+        return super().validate(data)
 
 
 class TicketAttachmentUpdateSerializer(ModelSerializer):
@@ -178,12 +214,13 @@ class TicketAttachmentUpdateSerializer(ModelSerializer):
         fields = fields = ("files",)
 
     def create(self, validated_data):
-        print(self.context)
+        validated_data["ticket_id"] = self.context["ticket_id"]
+        return super().create(validated_data)
+
+    def validate(self, data):
         ticket_id = self.context["ticket_id"]
         try:
             Ticket.objects.get(_id=ticket_id)
         except Ticket.DoesNotExist:
             raise ValidationError("Ticket doesn't Exist")
-
-        validated_data["ticket_id"] = ticket_id
-        return super().create(validated_data)
+        return super().validate(data)

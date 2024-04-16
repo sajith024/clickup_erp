@@ -1,11 +1,16 @@
-from rest_framework.serializers import ModelSerializer
+from rest_framework.serializers import ModelSerializer, Serializer
 from rest_framework.serializers import (
     SerializerMethodField,
     CharField,
     ImageField,
     IntegerField,
+    DateTimeField,
     ListField,
 )
+
+from rest_framework.serializers import ValidationError
+
+from clickup_utils.validators import check_name, check_date_range
 
 from .models import (
     Lists,
@@ -33,6 +38,8 @@ class ListsSerializer(ModelSerializer):
 
 
 class ListsUpdateSerializer(ModelSerializer):
+    name = CharField(validators=[check_name])
+
     class Meta:
         model = Lists
         fields = (
@@ -58,6 +65,13 @@ class SprintsSerializer(ModelSerializer):
         )
 
 
+class SprintAddSerializer(Serializer):
+    project = CharField()
+    numberOfSprints = IntegerField()
+    sprintDuration = IntegerField()
+    startDate = DateTimeField(validators=[check_date_range])
+
+
 class FoldersSerializer(ModelSerializer):
     list = ListsSerializer(many=True)
 
@@ -70,8 +84,9 @@ class FoldersSerializer(ModelSerializer):
         )
 
 
-class FoldersUpdateSerializer(ModelSerializer):
-    lists = ListField(child=CharField(), source="list")
+class FoldersBulkUpdateSerializer(ModelSerializer):
+    name = CharField(validators=[check_name])
+    lists = ListField(child=CharField(), source="list.name")
 
     class Meta:
         model = Folders
@@ -83,16 +98,47 @@ class FoldersUpdateSerializer(ModelSerializer):
         )
 
     def create(self, validated_data):
-        lists = validated_data.pop("list")
+        lists = validated_data.pop("list").get("name")
         project = validated_data.get("project")
         folder = Folders.objects.create(**validated_data)
         for list_name in lists:
             folder_list = Lists.objects.create(name=list_name, project=project)
             folder.list.add(folder_list)
         return folder
-    
+
+
+class FoldersUpdateSerializer(ModelSerializer):
+    folder = CharField(source="_id")
+    name = CharField(source="list.name", validators=[check_name])
+
+    class Meta:
+        model = Folders
+        fields = (
+            "folder",
+            "project",
+            "name",
+        )
+
+    def create(self, validated_data):
+        lists = validated_data.pop("list").get("name")
+        project = validated_data.get("project")
+        folder_id = validated_data.get("_id")
+        folder = Folders.objects.get(_id=folder_id)
+        folder_list = Lists.objects.create(name=lists, project=project)
+        folder.list.add(folder_list)
+        return folder
+
+    def validate_folder(self, value):
+        try:
+            Folders.objects.get(_id=value)
+        except Folders.DoesNotExist:
+            raise ValidationError("Folder Doesn't Exist")
+
+        return value
+
 
 class ProjectSerializer(ModelSerializer):
+    name = CharField(validators=[check_name])
     sprint = SprintsSerializer(many=True)
     folders = SerializerMethodField()
     lists = SerializerMethodField()

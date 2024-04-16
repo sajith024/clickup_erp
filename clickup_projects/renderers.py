@@ -21,19 +21,17 @@ class ClickUpResponeRenderer(JSONRenderer):
                 else:
                     if data.get("allocatedUsers"):
                         modified_data["allocatedUsers"] = data.get("allocatedUsers")
-                    elif data.get("ticketData"):
+                    elif data.get("ticketData") is not None:
                         modified_data.update(data)
                     else:
                         modified_data["data"] = data.get("data") or data
-
-            return super().render(modified_data, accepted_media_type, renderer_context)
         else:
             if self.is_error(response.status_code):
                 modified_data["errors"] = data
             else:
                 modified_data["data"] = data
 
-            return super().render(modified_data, accepted_media_type, renderer_context)
+        return super().render(modified_data, accepted_media_type, renderer_context)
 
     def is_error(self, status_code):
         return is_client_error(status_code) or is_server_error(status_code)
