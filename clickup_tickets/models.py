@@ -60,8 +60,8 @@ class Ticket(Model):
     title = CharField()
     customId = CharField(unique=True, editable=False)
     description = TextField()
-    startDate = DateField(null=True, blank=True)
-    dueDate = DateField(null=True, blank=True)
+    startDate = DateTimeField(null=True, blank=True)
+    dueDate = DateTimeField(null=True, blank=True)
     priority = ForeignKey(Priority, on_delete=SET_NULL, null=True)
     list = ForeignKey(
         Lists, on_delete=CASCADE, related_name="ticket_list", null=True, blank=True
@@ -117,8 +117,8 @@ class TicketAllocation(Model):
     customId = CharField(unique=True, editable=False)
     estimationHours = DurationField(default=timedelta(hours=1))
     description = TextField()
-    startDate = DateField(null=True, blank=True)
-    dueDate = DateField(null=True, blank=True)
+    startDate = DateTimeField(null=True, blank=True)
+    dueDate = DateTimeField(null=True, blank=True)
     assignedUsers = ManyToManyField(TeamMember, blank=True)
     ticket = ForeignKey(Ticket, on_delete=CASCADE, related_name="allocations")
     createdAt = DateTimeField(auto_now=True)

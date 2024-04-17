@@ -29,12 +29,17 @@ from .models import (
 
 
 class ListsSerializer(ModelSerializer):
+    ticketCount = SerializerMethodField()
     class Meta:
         model = Lists
         fields = (
             "_id",
             "name",
+            "ticketCount"
         )
+        
+    def get_ticketCount(self, list):
+        return list.ticket_list.count()
 
 
 class ListsUpdateSerializer(ModelSerializer):
@@ -55,6 +60,7 @@ class JokesSerializer(ModelSerializer):
 
 
 class SprintsSerializer(ModelSerializer):
+    ticketCounts = SerializerMethodField()
     class Meta:
         model = Sprints
         fields = (
@@ -62,8 +68,11 @@ class SprintsSerializer(ModelSerializer):
             "name",
             "active",
             "status",
+            "ticketCounts",
         )
-
+        
+    def get_ticketCounts(self, sprint):
+        return sprint.ticket_sprint.count()
 
 class SprintAddSerializer(Serializer):
     project = CharField()

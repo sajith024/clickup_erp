@@ -6,7 +6,7 @@ from rest_framework.viewsets import ModelViewSet
 from rest_framework.response import Response
 from rest_framework.status import HTTP_200_OK, HTTP_204_NO_CONTENT, HTTP_400_BAD_REQUEST
 from rest_framework.permissions import IsAuthenticated
-from django.db.models import Prefetch
+from django.db.models import Prefetch, Count
 
 from drf_spectacular.utils import (
     extend_schema,
@@ -54,7 +54,7 @@ class PriorityView(ListAPIView):
 
 @extend_schema_view()
 class TicketStatusView(ListAPIView):
-    queryset = TicketStatus.objects.all()
+    queryset = TicketStatus.objects.order_by("title").all()
     serializer_class = TicketStatusSerializer
     permission_classes = [IsAuthenticated]
     pagination_class = ClickUpPagination
@@ -78,33 +78,63 @@ class TicketViewSet(ModelViewSet):
     def get_queryset(self):
         list_id = self.request.query_params.get("listId")
         sprint_id = self.request.query_params.get("sprintId")
-        statuses = TicketStatus.objects.all()
+        data_count = self.request.query_params.get("dataCount", 0)
 
-        queryset = Ticket.objects.all()
+        try:
+            data_count = int(data_count)
+        except TypeError:
+            data_count = 0
+
         if list_id or sprint_id:
-            queryset_list = []
-            if list_id:
-                tickets = Ticket.objects.filter(list_id=list_id)
-            elif sprint_id:
-                tickets = Ticket.objects.filter(sprint_id=sprint_id)
-            else:
-                tickets = Ticket.objects.all()
-
+            tickets = Ticket.objects.filter(list_id=list_id, sprint_id=sprint_id)
             allocations = TicketAllocation.objects.filter(ticket__in=tickets)
-            for status in statuses:
+            ticket_group_by = (
+                allocations.values("ticketStatus", "ticketStatus__title")
+                .annotate(
+                    ticket_count=Count("ticketStatus"),
+                )
+                .order_by()
+            )
+            if ticket_group_by.exists():
+                status_id = ticket_group_by[data_count]["ticketStatus"]
+                status_name = ticket_group_by[data_count]["ticketStatus__title"]
                 ticket = tickets.prefetch_related(
                     Prefetch(
-                        "allocations", queryset=allocations.filter(ticketStatus=status)
+                        "allocations",
+                        queryset=allocations.filter(ticketStatus=status_id),
                     )
-                ).filter(allocations__ticketStatus=status)
-                if ticket:
-                    queryset_list.append(
-                        {"_id": status._id, "groupById": status._id, "data": ticket}
-                    )
+                ).filter(allocations__ticketStatus=status_id)
 
-            queryset = queryset_list
+                return [
+                    {
+                        "ticketData": [
+                            {
+                                "_id": status_id,
+                                "groupById": status_id,
+                                "data": ticket,
+                            }
+                        ],
+                        "TableHeading": {
+                            "_id": status_id,
+                            "name": status_name,
+                        },
+                        "totalCount": [
+                            {"count": group["ticket_count"]}
+                            for group in ticket_group_by
+                        ],
+                    }
+                ]
+            else:
+                return [
+                    {
+                        "ticketData": [],
+                        "pagination": {},
+                        "TableHeading": {},
+                        "totalCount": [],
+                    }
+                ]
 
-        return queryset
+        return self.queryset.all()
 
     def get_serializer_class(self):
         serializer_class = self.serializer_class
@@ -118,37 +148,11 @@ class TicketViewSet(ModelViewSet):
 
     def list(self, request, *args, **kwargs):
         if request.query_params.get("listId") or request.query_params.get("sprintId"):
-            data_count = request.query_params.get("dataCount", 0)
             queryset = self.filter_queryset(self.get_queryset())
             page = self.paginate_queryset(queryset)
             serializer = self.get_serializer(page, many=True)
             response = self.get_paginated_response(serializer.data)
-
-            if response.data["data"]:
-                ticket_data = response.data["data"][int(data_count)]
-                status = TicketStatus.objects.get(_id=ticket_data["_id"])
-                data = {
-                    "ticketData": [ticket_data],
-                    "pagination": response.data["pagination"],
-                    "TableHeading": {
-                        "_id": status._id,
-                        "name": status.title,
-                    },
-                    "totalCount": [
-                        {"count": len(x["data"])} for x in response.data["data"]
-                    ],
-                }
-                return Response(data, status=HTTP_200_OK)
-            else:
-                return Response(
-                    {
-                        "ticketData": [],
-                        "pagination": {},
-                        "TableHeading": {},
-                        "totalCount": [],
-                    },
-                    HTTP_200_OK,
-                )
+            return Response(response.data[0], status=HTTP_200_OK)
         else:
             return Response(status=HTTP_400_BAD_REQUEST)
 

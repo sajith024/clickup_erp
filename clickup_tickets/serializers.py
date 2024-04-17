@@ -1,5 +1,5 @@
 from rest_framework.serializers import ModelSerializer, Serializer
-from rest_framework.serializers import CharField, DateField
+from rest_framework.serializers import CharField, DateField, DateTimeField, IntegerField
 from rest_framework.serializers import ValidationError
 
 from .models import (
@@ -59,7 +59,7 @@ class TicketAllocationUpdateSerializer(ModelSerializer):
     assignedUsers = AllocationTeamMemberSerializer(many=True)
     title = CharField(validators=[check_name])
     description = CharField(max_length=500)
-    startDate = DateField(validators=[check_date_below])
+    startDate = DateTimeField(validators=[check_date_below])
 
     class Meta:
         model = TicketAllocation
@@ -107,6 +107,8 @@ class TicketAllocationUpdateSerializer(ModelSerializer):
                 team_member = TeamMember.objects.get(**user)
                 instance.assignedUsers.add(team_member)
 
+        instance.save()
+        
         return instance
 
     def validate_assignedUsers(self, value):
@@ -155,16 +157,31 @@ class TicketSerializer(ModelSerializer):
         )
 
 
-class TicketGroupSerializer(Serializer):
-    _id = CharField()
-    groupById = CharField()
+class TicketTotalCount(Serializer):
+    count = IntegerField(required=False)
+
+
+class TableHeading(Serializer):
+    _id = CharField(required=False)
+    name = CharField(required=False)
+
+
+class TicketData(Serializer):
+    _id = CharField(required=False)
+    groupById = CharField(required=False)
     data = TicketSerializer(many=True)
+
+
+class TicketGroupSerializer(Serializer):
+    ticketData = TicketData(many=True)
+    totalCount = TicketTotalCount(many=True)
+    TableHeading = TableHeading()
 
 
 class TicketUpdateSerializer(ModelSerializer):
     title = CharField(validators=[check_name])
     description = CharField(max_length=500)
-    startDate = DateField(validators=[check_date_below])
+    startDate = DateTimeField(validators=[check_date_below])
 
     class Meta:
         model = Ticket
@@ -175,7 +192,7 @@ class TicketUpdateSerializer(ModelSerializer):
             "dueDate",
             "priority",
         )
-    
+
     def update(self, instance, validated_data):
         instance.updatedBy.add(self.context.get("request").user.employee)
         return super().update(instance, validated_data)

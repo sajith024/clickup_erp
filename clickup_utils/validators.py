@@ -21,7 +21,7 @@ def check_date_range(value):
         )
 
 def check_date_below(value):
-    today = now().date()
+    today = now()
     if value < today:
         raise ValidationError(
             "Date should be today or greater"
